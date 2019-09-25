@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+    <view class="com.creations.rimov.esbeta.fragments.MainMenuFragment$MenuBtnExpand"
         android:id="@+id/menuA"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -13,7 +13,7 @@
         app:button_text="@string/menu_a"
         app:detail_text="@string/menu_a_detail"/>
 
-    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+    <view class="com.creations.rimov.esbeta.fragments.MainMenuFragment$MenuBtnExpand"
         android:id="@+id/menuB"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -21,7 +21,7 @@
         app:button_text="@string/menu_b"
         app:detail_text=""/>
 
-    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+    <view class="com.creations.rimov.esbeta.fragments.MainMenuFragment$MenuBtnExpand"
         android:id="@+id/menuC"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -29,7 +29,7 @@
         app:button_text="@string/menu_c"
         app:detail_text=""/>
 
-    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+    <view class="com.creations.rimov.esbeta.fragments.MainMenuFragment$MenuBtnExpand"
         android:id="@+id/menuD"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
