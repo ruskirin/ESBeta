@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">ESBeta</string>
+
+    <string name="menu_a">Video</string>
+    <string name="menu_b">B</string>
+    <string name="menu_c">C</string>
+    <string name="menu_d">D</string>
+
+    <string name="menu_a_detail">Have your child react to short clips</string>
+</resources>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+        android:id="@+id/menuA"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        app:button_text="@string/menu_a"
+        app:detail_text="@string/menu_a_detail"/>
+
+    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+        android:id="@+id/menuB"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        app:button_text="@string/menu_b"
+        app:detail_text=""/>
+
+    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+        android:id="@+id/menuC"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        app:button_text="@string/menu_c"
+        app:detail_text=""/>
+
+    <com.creations.rimov.esbeta.viewgroups.MenuBtnExpand
+        android:id="@+id/menuD"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        app:button_text="@string/menu_d"
+        app:detail_text=""/>
+
+</LinearLayout>

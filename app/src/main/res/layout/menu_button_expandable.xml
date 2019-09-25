@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <Button
+        android:id="@+id/menuBtnExpand"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"/>
+
+    <TextView
+        android:id="@+id/menuDetailText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_alignParentStart="true"
+        android:layout_toStartOf="@id/menuBtnGo"
+        android:layout_alignBottom="@id/menuBtnGo"
+        android:layout_below="@id/menuBtnExpand"
+        android:visibility="gone"/>
+
+    <ImageButton
+        android:id="@+id/menuBtnGo"
+        android:layout_width="@dimen/button_reg"
+        android:layout_height="@dimen/button_reg"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/menuBtnExpand"
+        android:visibility="gone"
+        android:src="@drawable/arrow_next"/>
+
+</merge>
