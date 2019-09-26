@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="button_reg">48dp</dimen>
+    <dimen name="button_large">64dp</dimen>
 </resources>

@@ -4,6 +4,21 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <ImageButton
+        android:id="@+id/videoBtnStart"
+        android:layout_width="@dimen/button_large"
+        android:layout_height="@dimen/button_large"
+        android:layout_gravity="center"
+        android:src="@drawable/icon_play"/>
+
+    <ImageButton
+        android:id="@+id/videoBtnStop"
+        android:layout_width="@dimen/button_large"
+        android:layout_height="@dimen/button_large"
+        android:layout_gravity="center"
+        android:src="@drawable/icon_stop"
+        android:visibility="gone"/>
+
     <VideoView
         android:id="@+id/videoView"
         android:layout_width="match_parent"
