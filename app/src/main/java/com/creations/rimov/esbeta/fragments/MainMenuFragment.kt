@@ -38,9 +38,10 @@ class MainMenuFragment : Fragment(), View.OnClickListener {
     override fun onClick(v: View?) {
 
         v?.let {
-            Log.i("MainMenuFrag", "onClick(): is click on btnGo? ${it.id == R.id.menuBtnGo}")
+            val parent = it.parent as View
 
-            when(it.id) {
+            //btnGo has been triggered, find which item it belongs to
+            when(parent.id) {
                 R.id.menuA -> {
                     Log.i("MainMenuFrag", "onClick(): click to next fragment")
 
