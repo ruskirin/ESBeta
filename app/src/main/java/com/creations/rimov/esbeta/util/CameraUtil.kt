@@ -2,6 +2,9 @@ package com.creations.rimov.esbeta.util
 
 import android.content.ContentValues
 import android.content.Context
+import android.hardware.camera2.CameraAccessException
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
@@ -16,6 +19,25 @@ object CameraUtil {
 
 //    private const val IMAGE_PROVIDER_AUTHORITY = "com.creations.rimov.esbeta.fileprovider"
     private const val IMG_FILENAME_PREFIX = "EarlySee_vid_react_"
+
+    @JvmStatic
+    fun getFrontCameraId(cameraManager: CameraManager): String? {
+        val camerasList =
+            try {
+                cameraManager.cameraIdList
+            } catch(e: CameraAccessException) {
+                Log.e("CameraUtil", "getFrontCameraId(): CameraAccessException thrown!")
+                return null
+            }
+
+        camerasList.forEach { camera ->
+            val camChar = cameraManager.getCameraCharacteristics(camera).get(CameraCharacteristics.LENS_FACING)
+
+            if(camChar == CameraCharacteristics.LENS_FACING_FRONT) return camera
+        }
+
+        return null
+    }
 
     @JvmStatic
     fun getVideoFile(storageDir: File? = null): File? {

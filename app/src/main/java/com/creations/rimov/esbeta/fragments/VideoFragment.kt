@@ -1,31 +1,24 @@
 package com.creations.rimov.esbeta.fragments
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.media.CamcorderProfile
+import android.hardware.camera2.CameraCaptureSession
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
-import android.widget.Toast
 import android.widget.VideoView
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.creations.rimov.esbeta.FrontCamera
 import com.creations.rimov.esbeta.R
 import com.creations.rimov.esbeta.extensions.gone
 import com.creations.rimov.esbeta.extensions.invisible
 import com.creations.rimov.esbeta.extensions.visible
 import com.creations.rimov.esbeta.util.CameraUtil
 import kotlinx.android.synthetic.main.testing_video.view.*
-import java.io.File
-import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.*
 
 class VideoFragment : Fragment(), View.OnClickListener {
 
@@ -34,6 +27,8 @@ class VideoFragment : Fragment(), View.OnClickListener {
         const val PLAYING = 701
         const val TOUCHED = 702
     }
+
+    private lateinit var camera: FrontCamera
 
     private lateinit var vidView: VideoView
     private lateinit var btnStart: ImageButton
@@ -48,7 +43,8 @@ class VideoFragment : Fragment(), View.OnClickListener {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
 
-        if(!getPermissions()) return null
+        camera = FrontCamera(activity ?: return null)
+        camera.open()
 
         vidUri = Uri.parse("android.resource://com.creations.rimov.esbeta/" + R.raw.sample_video)
 
@@ -63,10 +59,6 @@ class VideoFragment : Fragment(), View.OnClickListener {
             btnStop.setOnClickListener(this)
             vidView.setOnClickListener(this)
 
-//            vidView.setOnCompletionListener {
-//                stopVideo()
-//            }
-
             return view
         }
 
@@ -78,13 +70,6 @@ class VideoFragment : Fragment(), View.OnClickListener {
         vidView.setVideoURI(uri)
         initRecorder()
 
-        if(!prepareRecorder()) {
-            Toast.makeText(context,
-                "Something went with the camera! Aborting.", Toast.LENGTH_LONG).show()
-
-            return false
-        }
-
         setPlayStatus(PlayStatus.SET)
 
         return true
@@ -92,7 +77,20 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     private fun startVideo() {
 
-        if(vidView.isPlaying) return
+        if(camera.device == null || vidView.isPlaying) return
+
+        //Not certain if needed considering no preview has been set up
+//        camera.device.createCaptureSession(
+//            listOf<Surface>(),
+//            object : CameraCaptureSession.StateCallback() {
+//                override fun onConfigureFailed(p0: CameraCaptureSession) {
+//
+//                }
+//
+//                override fun onConfigured(p0: CameraCaptureSession) {
+//
+//                }
+//            }, )
 
         setPlayStatus(PlayStatus.PLAYING)
 
@@ -118,30 +116,16 @@ class VideoFragment : Fragment(), View.OnClickListener {
         val vid = CameraUtil.getVideoFile()
 
         recorder.apply {
-//            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.CAMERA)
-//            setProfile(CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH))
-            setOutputFormat(MediaRecorder.OutputFormat.WEBM)
-//            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-            setVideoEncoder(MediaRecorder.VideoEncoder.VP8)
-            setVideoSize(480, 360)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
             setOutputFile(vid?.absolutePath)
             Log.i("VideoFrag", "initRecorder(): saving in path ${vid?.absolutePath}")
+
+            prepare()
         }
-    }
-
-    //If prepare() fails, return false
-    private fun prepareRecorder(): Boolean {
-
-        try {
-            recorder.prepare()
-
-        } catch(e: IOException) {
-            e.printStackTrace()
-            return false
-        }
-
-        return true
     }
 
     private fun setPlayStatus(status: Int) {
@@ -182,41 +166,4 @@ class VideoFragment : Fragment(), View.OnClickListener {
             }
         }
     }
-
-    //Since SDK 23(24?), permission must be requested at runtime if it has not already been granted
-    private fun getPermissions(): Boolean {
-
-        context?.let { myContext ->
-            activity?.let { myActivity ->
-                if((ContextCompat.checkSelfPermission(
-                        myContext, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
-                    && (ContextCompat.checkSelfPermission(
-                        myContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)) {
-
-                    return true //Permission has already been granted
-                }
-
-                //Explain why you need the permission
-                if(ActivityCompat.shouldShowRequestPermissionRationale(
-                        myActivity, Manifest.permission.CAMERA)) {
-                    //TODO FUTURE: display rationale for this request
-                    Toast.makeText(myContext, "Camera is required for app functionality", Toast.LENGTH_LONG).show()
-                }
-
-                //Permission has not yet been granted, check onRequestPermissionResult()
-                ActivityCompat.requestPermissions(
-                    //Request code is personal but must be constant for any future checks
-                    myActivity,
-                    arrayOf(Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                    1000)
-            }
-        }
-
-        return false
-    }
-
-//    private fun getFrontCameraId(): Int {
-//
-//        //android.hardware.camera2. ---- use the MediaRecorder but first you need to let it know to use the front camera
-//    }
 }
