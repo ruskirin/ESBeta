@@ -1,12 +1,10 @@
 package com.creations.rimov.esbeta.fragments
 
-import android.hardware.camera2.CameraCaptureSession
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
@@ -67,6 +65,8 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     private fun prepareVideo(uri: Uri): Boolean {
 
+        if(!camera.ready) return false
+
         vidView.setVideoURI(uri)
         initRecorder()
 
@@ -113,16 +113,16 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     private fun initRecorder() {
 
-        val vid = CameraUtil.getVideoFile()
+        val vid = CameraUtil.getNewVideoUri(context ?: return)
 
         recorder.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.CAMERA)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-            setOutputFile(vid?.absolutePath)
-            Log.i("VideoFrag", "initRecorder(): saving in path ${vid?.absolutePath}")
+            setOutputFile(vid?.path)
+            Log.i("VideoFrag", "initRecorder(): saving in path ${vid?.path}")
 
             prepare()
         }

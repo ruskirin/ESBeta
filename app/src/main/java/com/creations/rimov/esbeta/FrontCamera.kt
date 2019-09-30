@@ -22,8 +22,8 @@ class FrontCamera(private val activity: Activity) {
     }
 
     var device: CameraDevice? = null
-
-    private var id: String? = null
+    var id: String? = null
+    var ready: Boolean = false
 
     //A callback object for receiving updates about the state of a camera device.
     private val stateCallback = object : CameraDevice.StateCallback() {
@@ -45,36 +45,33 @@ class FrontCamera(private val activity: Activity) {
     }
 
     @SuppressLint("MissingPermission")
-    fun open() {
+    fun open(): Boolean {
         val neededPermissions = PermissionsUtil.check(activity, PermissionsUtil.CAMERA, PermissionsUtil.AUDIO)
 
         if(neededPermissions.isNotEmpty()) {
-            requestVideoPermission()
+            PermissionsUtil.requestVideoPermission(activity)
+            ready = false
+            return false
         }
 
         val camManager = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        id = CameraUtil.getFrontCameraId(camManager) ?: return
+        id = CameraUtil.getFrontCameraId(camManager) ?: return false
 
         try {
-            camManager.openCamera(id ?: return, stateCallback, null)
+            camManager.openCamera(id ?: return false, stateCallback, null)
         } catch(e: NullPointerException) { //camera2API not supported
             e.printStackTrace()
         } catch(e: InterruptedException) {
             throw RuntimeException("Interrupted while locking open camera")
         }
+
+        ready = true
+        return true
     }
 
     fun close() {
 
         device?.close()
         device = null
-    }
-
-    private fun requestVideoPermission() {
-
-        PermissionsUtil.showRationale(activity, PermissionsUtil.CAMERA)
-        PermissionsUtil.showRationale(activity, PermissionsUtil.AUDIO)
-
-        PermissionsUtil.requestPermission(activity, Constant.VIDEO_REQUEST_CODE, PermissionsUtil.CAMERA, PermissionsUtil.AUDIO)
     }
 }

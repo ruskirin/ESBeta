@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.creations.rimov.esbeta.FrontCamera
 
 object PermissionsUtil {
 
@@ -66,5 +67,16 @@ object PermissionsUtil {
         }
 
         ActivityCompat.requestPermissions(activity, types.toTypedArray(), requestCode)
+    }
+
+    @JvmStatic
+    fun requestVideoPermission(activity: Activity) {
+
+        showRationale(activity, CAMERA)
+        showRationale(activity, AUDIO)
+        showRationale(activity, STORAGE_EXT)
+
+        requestPermission(activity, FrontCamera.Constant.VIDEO_REQUEST_CODE,
+            CAMERA, AUDIO, STORAGE_EXT)
     }
 }
