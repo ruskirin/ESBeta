@@ -1,7 +1,9 @@
 package com.creations.rimov.esbeta.fragments
 
+import android.media.CamcorderProfile
 import android.media.MediaRecorder
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -9,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.VideoView
+import androidx.core.net.toUri
 import androidx.fragment.app.Fragment
 import com.creations.rimov.esbeta.FrontCamera
 import com.creations.rimov.esbeta.R
@@ -113,16 +116,40 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     private fun initRecorder() {
 
-        val vid = CameraUtil.getNewVideoUri(context ?: return)
+        var vid: String? = null
+
+        val ctx = context ?: return
+
+//        if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+//            val file = CameraUtil.getVideoFile() ?: return
+//            vid = file.toUri()
+
+            vid = CameraUtil.getVideoPath(ctx)
+
+//        } else {
+//            vid = CameraUtil.getVideoUriNew(ctx)?.encodedPath
+//        }
 
         recorder.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.CAMERA)
-            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-            setOutputFile(vid?.path)
-            Log.i("VideoFrag", "initRecorder(): saving in path ${vid?.path}")
+
+            Log.i("VideoFrag", "initRecorder(): front camera id = ${camera.id}")
+
+            val profile = CamcorderProfile.get(camera.id!!.toInt(), CamcorderProfile.QUALITY_HIGH)
+            setProfile(profile)
+
+//            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+//            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+//            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            setOutputFile(vid)
+//            setOutputFile(vid?.path)
+            Log.i("VideoFrag", "initRecorder(): saving in path $vid")
+
+//            setVideoEncodingBitRate(profile.videoBitRate)
+//            setVideoFrameRate(30)
+            setVideoSize(camera.deviceVideoDimen.width, camera.deviceVideoDimen.height)
+            setMaxDuration(10000)
 
             prepare()
         }

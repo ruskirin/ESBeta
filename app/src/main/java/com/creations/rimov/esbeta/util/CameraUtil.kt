@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.core.content.FileProvider
 import com.creations.rimov.esbeta.extensions.stdPattern
 import java.io.File
 import java.io.IOException
@@ -16,7 +17,7 @@ import java.util.*
 
 object CameraUtil {
 
-//    private const val IMAGE_PROVIDER_AUTHORITY = "com.creations.rimov.esbeta.fileprovider"
+    private const val IMAGE_PROVIDER_AUTHORITY = "com.creations.rimov.esbeta.fileprovider"
     private const val VID_FILENAME_PREFIX = "EarlySee_vid_react_"
 
     @JvmStatic
@@ -39,19 +40,30 @@ object CameraUtil {
     }
 
     @JvmStatic
+    fun getVideoPath(context: Context): String {
+        val directory = context.getExternalFilesDir(null)
+        directory?.mkdirs()
+
+        val name = VID_FILENAME_PREFIX + Date().stdPattern() + ".mp4"
+
+        return "${directory?.absolutePath}/$name"
+    }
+
+    @JvmStatic
     fun getVideoFile(storageDir: File? = null): File? {
 
         //TODO FUTURE: handle this
         if(!isExternalStorageAvailable()) {
-            Log.e("Image Creation", "CameraUtil#getImageFile(): external storage not available!")
+            Log.e("CameraUtil", "getVideoFile(): external storage not available!")
             return null
         }
 
         return try {
             //Starting SDK 29, getExternalStoragePublicDirectory is deprecated and other methods need to be used
             val directory = storageDir ?: Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+            directory.mkdirs()
 
-            createImageFile(directory)
+            createVideoFile(directory)
 
         } catch(e: IOException) {
             e.printStackTrace()
@@ -59,12 +71,12 @@ object CameraUtil {
         }
     }
 
-//    @JvmStatic
-//    fun getImageUri(context: Context, imageFile: File): Uri =
-//        FileProvider.getUriForFile(context, IMAGE_PROVIDER_AUTHORITY, imageFile)
+    @JvmStatic
+    fun getVideoUriOld(context: Context, videoFile: File): Uri =
+        FileProvider.getUriForFile(context, IMAGE_PROVIDER_AUTHORITY, videoFile)
 
     @JvmStatic
-    fun getNewVideoUri(context: Context): Uri? {
+    fun getVideoUriNew(context: Context): Uri? {
 
         val resolver = context.contentResolver
         val values = ContentValues().apply {
@@ -73,17 +85,19 @@ object CameraUtil {
             put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ESBeta")
         }
 
-        return resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+        return resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
     }
 
     @JvmStatic
-    fun deleteImageFile(imagePath: String) = File(imagePath).delete()
+    fun deleteVideoFile(imagePath: String) = File(imagePath).delete()
 
     @JvmStatic
-    private fun createImageFile(storageDir: File): File {
+    private fun createVideoFile(storageDir: File): File {
 
         val time = Date().stdPattern() //Part of the file name
-        val file = File(storageDir, "$VID_FILENAME_PREFIX$time.webm")
+        val file = File(storageDir, "$VID_FILENAME_PREFIX$time.mp4")
+
+        Log.i("CameraUtil", "createVideoFile(): created file: ${file.absolutePath}")
 
         return file
     }

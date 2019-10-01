@@ -3,8 +3,12 @@ package com.creations.rimov.esbeta
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.media.MediaRecorder
+import android.util.Log
+import android.util.Size
 import com.creations.rimov.esbeta.util.CameraUtil
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import java.lang.NullPointerException
@@ -23,6 +27,9 @@ class FrontCamera(private val activity: Activity) {
 
     var device: CameraDevice? = null
     var id: String? = null
+
+    lateinit var deviceVideoDimen: Size
+
     var ready: Boolean = false
 
     //A callback object for receiving updates about the state of a camera device.
@@ -57,6 +64,14 @@ class FrontCamera(private val activity: Activity) {
         val camManager = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         id = CameraUtil.getFrontCameraId(camManager) ?: return false
 
+        val char = camManager.getCameraCharacteristics(id!!)
+//        char.get(CameraCharacteristics.)
+        val charMap = char.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return false
+
+        deviceVideoDimen = chooseVideoSize(charMap.getOutputSizes(MediaRecorder::class.java)) ?: return false
+
+        Log.i("FrontCamera", "open(): chosen video dimen = (${deviceVideoDimen.width}, ${deviceVideoDimen.height})")
+
         try {
             camManager.openCamera(id ?: return false, stateCallback, null)
         } catch(e: NullPointerException) { //camera2API not supported
@@ -74,4 +89,6 @@ class FrontCamera(private val activity: Activity) {
         device?.close()
         device = null
     }
+
+    private fun chooseVideoSize(sizes: Array<Size>) = sizes.firstOrNull { it.width <= 1080 }
 }
