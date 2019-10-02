@@ -4,79 +4,54 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.creations.rimov.esbeta.FrontCamera
 
 object PermissionsUtil {
 
-    const val CAMERA = 3001
-    const val AUDIO = 3002
-    const val STORAGE_EXT = 4001
+    const val VIDEO_REQUEST_CODE = 9000
 
-    //Has @param{permission} already been granted?
+    val VIDEO_PERMISSIONS = arrayOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
     @JvmStatic
-    fun check(context: Context, vararg permission: Int): List<Int> {
-        val types = arrayListOf<Int>()
-
-        permission.forEach { permission ->
-            val type: String = when (permission) {
-                CAMERA -> Manifest.permission.CAMERA
-                AUDIO -> Manifest.permission.RECORD_AUDIO
-                STORAGE_EXT -> Manifest.permission.WRITE_EXTERNAL_STORAGE
-                else -> return@forEach
-            }
-
-            if((ContextCompat.checkSelfPermission(context, type) != PackageManager.PERMISSION_GRANTED))
-                types.add(permission)
-        }
-
-        return types
+    fun havePermission(context: Context, vararg permission: String) = permission.none { perm ->
+            ContextCompat.checkSelfPermission(context, perm) != PackageManager.PERMISSION_GRANTED
     }
 
-    //If rationale for the @param{permission} is needed, display @param{message}
     @JvmStatic
-    fun showRationale(activity: Activity, permission: Int, message: String = "Permission required for app functionality") {
-        val type: String? = when (permission) {
-            CAMERA -> Manifest.permission.CAMERA
-            AUDIO -> Manifest.permission.RECORD_AUDIO
-            STORAGE_EXT -> Manifest.permission.WRITE_EXTERNAL_STORAGE
-            else -> null
-        }
+    fun showRationale(activity: Activity,
+                      permission: String,
+                      message: String = "Permission required for app functionality") {
 
         //Explain why you need the permission
         if(ActivityCompat.shouldShowRequestPermissionRationale(
-                activity, type ?: return)) {
+                activity, permission)) {
+
             Toast.makeText(activity.applicationContext, message, Toast.LENGTH_LONG).show()
         }
     }
 
-    //NOTE: Since SDK 23(24?), permission must be requested at runtime if it has not already been granted
-    //Request @param{permissions}, supplying personal @param{requestCode} for the "transaction"
     @JvmStatic
-    fun requestPermission(activity: Activity, requestCode: Int, vararg permissions: Int) {
-        val types: ArrayList<String> = arrayListOf()
-
-        permissions.forEach { permission ->
-            when(permission) {
-                CAMERA -> types.add(Manifest.permission.CAMERA)
-                AUDIO -> types.add(Manifest.permission.RECORD_AUDIO)
-                STORAGE_EXT -> types.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }
-
-        ActivityCompat.requestPermissions(activity, types.toTypedArray(), requestCode)
+    fun haveVideoPermission(activity: Activity) = VIDEO_PERMISSIONS.none {
+        !havePermission(activity, it)
     }
 
     @JvmStatic
     fun requestVideoPermission(activity: Activity) {
+        val neededPerms = arrayListOf<String>()
 
-        showRationale(activity, CAMERA)
-        showRationale(activity, AUDIO)
-        showRationale(activity, STORAGE_EXT)
+        VIDEO_PERMISSIONS.forEach {
+            if(!havePermission(activity, it)) {
+                neededPerms.add(it)
+                showRationale(activity, it)
+            }
+        }
 
-        requestPermission(activity, FrontCamera.Constant.VIDEO_REQUEST_CODE,
-            CAMERA, AUDIO, STORAGE_EXT)
+        ActivityCompat.requestPermissions(activity, neededPerms.toTypedArray(), VIDEO_REQUEST_CODE)
     }
 }
