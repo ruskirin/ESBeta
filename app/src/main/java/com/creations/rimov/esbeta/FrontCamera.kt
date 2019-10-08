@@ -85,6 +85,11 @@ class FrontCamera(private val activity: Activity) {
         val configMap = char?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
             ?: throw RuntimeException("Cannot retrieve video size")
 
-        return configMap.getOutputSizes(MediaRecorder::class.java).firstOrNull { it.width <= 1080 }
+
+        configMap.getOutputSizes(MediaRecorder::class.java).forEach {
+            Log.i("FrontCam", "getVideoSize(): height ${it.height}, width ${it.width}")
+        }
+
+        return Size(0, 0)
     }
 }

@@ -3,17 +3,19 @@ package com.creations.rimov.esbeta.fragments
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.hardware.camera2.CameraAccessException
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraDevice
-import android.hardware.camera2.CameraManager
+import android.content.res.Configuration
+import android.graphics.SurfaceTexture
+import android.hardware.camera2.*
 import android.media.CamcorderProfile
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.HandlerThread
 import android.util.Log
 import android.util.Size
 import android.view.LayoutInflater
+import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
@@ -30,6 +32,8 @@ import com.creations.rimov.esbeta.util.PermissionsUtil
 import kotlinx.android.synthetic.main.testing_video.view.*
 import java.lang.NullPointerException
 import java.lang.RuntimeException
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
 
 class VideoFragment : Fragment(), View.OnClickListener {
 
@@ -40,6 +44,12 @@ class VideoFragment : Fragment(), View.OnClickListener {
     }
 
     private lateinit var cameraActivity: Activity
+
+    private var captureSession: CameraCaptureSession? = null
+    private lateinit var previewRequestBuilder: CaptureRequest.Builder
+
+    private var backgroundThread: HandlerThread? = null
+    private var backgroundHandler: Handler? = null
 
 //    private lateinit var camera: FrontCamera
 
@@ -105,12 +115,26 @@ class VideoFragment : Fragment(), View.OnClickListener {
         return null
     }
 
+    override fun onResume() {
+        super.onResume()
+        startBackgroundThread()
+
+        open()
+    }
+
+    override fun onPause() {
+        close()
+        stopBackgroundThread()
+        super.onPause()
+    }
+
     @SuppressLint("MissingPermission")
     fun open() {
 
         if(!PermissionsUtil.haveVideoPermission(cameraActivity)) {
             Log.i("FrontCamera", "open(): don't have required permissions!")
             PermissionsUtil.requestVideoPermission(cameraActivity)
+            return
         }
 
         Log.i("FrontCamera", "open(): permissions obtained.")
@@ -118,7 +142,7 @@ class VideoFragment : Fragment(), View.OnClickListener {
         val manager = cameraActivity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         try {
             id = CameraUtil.getFrontCameraId(manager)
-            char = manager.getCameraCharacteristics(id ?: return)
+            char = manager.getCameraCharacteristics(id ?: "1")
 
             recorder = MediaRecorder()
             manager.openCamera(id!!, stateCallback, null)
@@ -134,17 +158,15 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     fun close() {
 
-        device?.close()
-        device = null
-        recorder?.release()
-        recorder = null
-    }
-
-    fun getVideoSize(): Size? {
-        val configMap = char?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-            ?: throw RuntimeException("Cannot retrieve video size")
-
-        return configMap.getOutputSizes(MediaRecorder::class.java).firstOrNull { it.width <= 1080 }
+        try {
+            closePreviewSession()
+            device?.close()
+            device = null
+            recorder?.release()
+            recorder = null
+        } catch (e: InterruptedException) {
+            throw RuntimeException("Interrupted while trying to lock camera closing.", e)
+        }
     }
 
     private fun prepareVideo(uri: Uri) {
@@ -162,9 +184,36 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
         initRecorder()
 
+        // Set up Surface for camera preview and MediaRecorder
+        val recorderSurface = recorder!!.surface
+        val surfaces = ArrayList<Surface>().apply {
+            add(recorderSurface)
+        }
+
+        previewRequestBuilder = device!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
+            addTarget(recorderSurface)
+        }
+
+        device!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
+            addTarget(recorderSurface)
+        }
+
+        device!!.createCaptureSession(surfaces,
+            object : CameraCaptureSession.StateCallback() {
+
+                override fun onConfigured(cameraCaptureSession: CameraCaptureSession) {
+                    captureSession = cameraCaptureSession
+                    updatePreview()
+                    activity?.runOnUiThread {
+                        recorder?.start()
+                    }
+                }
+
+                override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) {}
+            }, backgroundHandler)
+
         setPlayStatus(PlayStatus.PLAYING)
 
-        recorder?.start()
         video.start()
     }
 
@@ -194,14 +243,13 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile(path)
-
-            setVideoFrameRate(15)
-            getVideoSize()?.apply {
+            setVideoFrameRate(30)
+            getLargestSize()?.apply {
                 setVideoSize(this.width, this.height)
             }
 
-            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
 
             prepare()
         }
@@ -223,6 +271,61 @@ class VideoFragment : Fragment(), View.OnClickListener {
             PlayStatus.TOUCHED -> {
                 btnStop.visible()
             }
+        }
+    }
+
+    private fun getLargestSize(): Size? {
+        val configMap = char?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+            ?: throw RuntimeException("Cannot retrieve video size")
+
+
+        return configMap.getOutputSizes(MediaRecorder::class.java).firstOrNull {
+            it.width <= 1080
+        }
+    }
+
+    private fun setUpCaptureRequestBuilder(builder: CaptureRequest.Builder?) {
+        builder?.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
+    }
+
+    private fun updatePreview() {
+        if (device  == null) return
+
+        try {
+            setUpCaptureRequestBuilder(previewRequestBuilder)
+            HandlerThread("CameraPreview").start()
+            captureSession?.setRepeatingRequest(previewRequestBuilder.build(),
+                null, backgroundHandler)
+        } catch (e: CameraAccessException) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun closePreviewSession() {
+        captureSession?.close()
+        captureSession = null
+    }
+
+    /**
+     * Starts a background thread and its [Handler].
+     */
+    private fun startBackgroundThread() {
+        backgroundThread = HandlerThread("CameraBackground")
+        backgroundThread?.start()
+        backgroundHandler = Handler(backgroundThread?.looper)
+    }
+
+    /**
+     * Stops the background thread and its [Handler].
+     */
+    private fun stopBackgroundThread() {
+        backgroundThread?.quitSafely()
+        try {
+            backgroundThread?.join()
+            backgroundThread = null
+            backgroundHandler = null
+        } catch (e: InterruptedException) {
+            e.printStackTrace()
         }
     }
 
