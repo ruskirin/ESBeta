@@ -1,6 +1,5 @@
 package com.creations.rimov.esbeta.util
 
-import android.content.Context
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
@@ -12,7 +11,8 @@ import java.util.*
 
 object CameraUtil {
 
-    private const val VID_FILENAME_PREFIX = "EarlySee_vid_react_"
+    const val VID_PREFIX_CAM = "EarlySee_React_Cam_"
+    const val VID_PREFIX_SCREEN = "EarlySee_React_Screen_"
 
     @JvmStatic
     fun getFrontCameraId(cameraManager: CameraManager): String? {
@@ -34,20 +34,10 @@ object CameraUtil {
     }
 
     @JvmStatic
-    fun getVideoPath(context: Context): String {
-        val directory = context.getExternalFilesDir(null)
-        directory?.mkdirs()
-
-        val name = VID_FILENAME_PREFIX + Date().stdPattern() + ".mp4"
-
-        return "${directory?.absolutePath}/$name"
-    }
-
-    @JvmStatic
     private fun createVideoFile(storageDir: File): File {
 
         val time = Date().stdPattern() //Part of the file name
-        val file = File(storageDir, "$VID_FILENAME_PREFIX$time.mp4")
+        val file = File(storageDir, "$VID_PREFIX_CAM$time.mp4")
 
         Log.i("CameraUtil", "createVideoFile(): created file: ${file.absolutePath}")
 

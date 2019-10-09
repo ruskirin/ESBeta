@@ -20,7 +20,7 @@ import java.lang.RuntimeException
  * Used the following for guidance:
  *   https://github.com/android/camera-samples/blob/master/Camera2VideoKotlin/Application/src/main/java/com/example/android/camera2video/Camera2VideoFragment.kt
  */
-class FrontCamera(private val cameraActivity: Activity) {
+class RecordingSession(private val recordActivity: Activity) {
 
     private var bgThread: HandlerThread? = null
     private var bgHandler: Handler? = null
@@ -28,77 +28,82 @@ class FrontCamera(private val cameraActivity: Activity) {
     private var captureSession: CameraCaptureSession? = null
     private lateinit var previewRequestBuilder: CaptureRequest.Builder
 
-    var device: CameraDevice? = null
-    var id: String? = null
-    var char: CameraCharacteristics? = null
+    var camRecorder: MediaRecorder? = null
+    var screenRecorder: MediaRecorder? = null
 
-    //A callback object for receiving updates about the state of a camera device.
+    var camDevice: CameraDevice? = null
+    var camId: String? = null
+    var camChar: CameraCharacteristics? = null
+
+    //A callback object for receiving updates about the state of a camera camDevice.
     private val stateCallback = object : CameraDevice.StateCallback() {
 
         override fun onOpened(cam: CameraDevice) {
-            device = cam
+            camDevice = cam
         }
         //Camera no longer available for use
         override fun onDisconnected(cam: CameraDevice) {
-            device?.close()
-            device = null
+            camDevice?.close()
+            camDevice = null
         }
 
         override fun onError(cam: CameraDevice, error: Int) {
-            device?.close()
-            device = null
-            cameraActivity.finish()
+            camDevice?.close()
+            camDevice = null
+            recordActivity.finish()
         }
     }
 
     @SuppressLint("MissingPermission")
-    fun open() {
-
-        if(!PermissionsUtil.haveVideoPermission(cameraActivity)) {
-            Log.i("FrontCamera", "open(): don't have required permissions!")
-            PermissionsUtil.requestVideoPermission(cameraActivity)
+    fun openCam() {
+        if(!PermissionsUtil.haveVideoPermission(recordActivity)) {
+            Log.i("RecordingSession", "openCam(): don't have required permissions!")
+            PermissionsUtil.requestVideoPermission(recordActivity)
             return
         }
 
-        Log.i("FrontCamera", "open(): permissions obtained.")
+        camRecorder = MediaRecorder()
+        screenRecorder = MediaRecorder()
 
-        val manager = cameraActivity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        Log.i("RecordingSession", "openCam(): permissions obtained.")
+
+        val manager = recordActivity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         try {
-            id = CameraUtil.getFrontCameraId(manager)
-            char = manager.getCameraCharacteristics(id ?: "1")
+            camId = CameraUtil.getFrontCameraId(manager)
+            camChar = manager.getCameraCharacteristics(camId ?: "1")
 
-            manager.openCamera(id!!, stateCallback, null)
+            manager.openCamera(camId!!, stateCallback, null)
 
         } catch(e: CameraAccessException) {
-            Toast.makeText(cameraActivity, "Cannot open camera", Toast.LENGTH_SHORT).show()
-            cameraActivity.finish()
+            Toast.makeText(recordActivity, "Cannot openCam camera", Toast.LENGTH_SHORT).show()
+            recordActivity.finish()
 
         } catch(e: NullPointerException) { //camera2 is used but not supported
-            Toast.makeText(cameraActivity, "Device not compatible with used API (camera2)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(recordActivity, "Device not compatible with used API (camera2)", Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun close() {
+    fun closeCam() {
 
         try {
             closePreviewSession()
-            device?.close()
-            device = null
+            camDevice?.close()
+            camDevice = null
 
         } catch (e: InterruptedException) {
             throw RuntimeException("Interrupted while trying to lock camera closing.", e)
         }
     }
 
-    fun setUpCaptureSession(surfaces: ArrayList<Surface>, recorder: MediaRecorder?) {
+    fun setUpCaptureSession() {
 
-        previewRequestBuilder = device!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-            addTarget(surfaces[0])
+        previewRequestBuilder = camDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
+            addTarget(camRecorder!!.surface)
         }
 
-        device?.let {
+        camDevice?.let {
             it.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-                addTarget(surfaces[0]) //First element is the MediaRecorder surface
+                addTarget(camRecorder!!.surface) //First element is the MediaRecorder surface
             }
 
             it.createCaptureSession(
@@ -108,10 +113,14 @@ class FrontCamera(private val cameraActivity: Activity) {
                     override fun onConfigured(cameraCaptureSession: CameraCaptureSession) {
                         captureSession = cameraCaptureSession
                         updatePreview()
-                        cameraActivity.runOnUiThread { recorder?.start() }
+                        recordActivity.runOnUiThread {
+                            camRecorder?.start()
+                            screenRecorder?.start()
+                        }
                     }
                     override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) {}
-            }, bgHandler)
+                },
+                bgHandler)
         }
     }
 
@@ -143,12 +152,54 @@ class FrontCamera(private val cameraActivity: Activity) {
         }
     }
 
-    fun getLargestSize(): Size? {
-        val configMap = char?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+    fun getLargestCamSize(): Size? {
+        val configMap = camChar?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
             ?: throw RuntimeException("Cannot retrieve video size")
 
         return configMap.getOutputSizes(MediaRecorder::class.java).firstOrNull {
             it.width <= 1080
+        }
+    }
+
+    fun initCamRecorder(path: String) {
+
+        Log.i("RecordingSession", "initCamRecorder(): path is $path")
+
+        camRecorder?.apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setVideoSource(MediaRecorder.VideoSource.SURFACE)
+
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setOutputFile(path)
+            setVideoFrameRate(30)
+            getLargestCamSize()?.apply {
+                setVideoSize(this.width, this.height)
+            }
+
+            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+
+            prepare()
+        }
+    }
+
+    fun initScreenRecorder(path: String) {
+
+        Log.i("RecordingSession", "initScreenRecorder(): path is $path")
+
+        camRecorder?.apply {
+            setVideoSource(MediaRecorder.VideoSource.SURFACE)
+
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setOutputFile(path)
+            setVideoFrameRate(30)
+            getLargestCamSize()?.apply {
+                setVideoSize(this.width, this.height)
+            }
+
+            setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+
+            prepare()
         }
     }
 
@@ -157,7 +208,7 @@ class FrontCamera(private val cameraActivity: Activity) {
     }
 
     private fun updatePreview() {
-        if (device  == null) return
+        if (camDevice  == null) return
 
         try {
             setUpCaptureRequestBuilder(previewRequestBuilder)
