@@ -1,26 +1,24 @@
 package com.creations.rimov.esbeta.fragments
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.content.res.Configuration
-import android.graphics.SurfaceTexture
-import android.hardware.camera2.*
-import android.media.CamcorderProfile
+import android.content.Intent
+import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
 import android.media.MediaRecorder
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.HandlerThread
+import android.util.DisplayMetrics
 import android.util.Log
-import android.util.Size
 import android.view.LayoutInflater
-import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.Toast
 import android.widget.VideoView
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.fragment.app.Fragment
 import com.creations.rimov.esbeta.FrontCamera
 import com.creations.rimov.esbeta.R
@@ -30,10 +28,6 @@ import com.creations.rimov.esbeta.extensions.visible
 import com.creations.rimov.esbeta.util.CameraUtil
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import kotlinx.android.synthetic.main.testing_video.view.*
-import java.lang.NullPointerException
-import java.lang.RuntimeException
-import java.util.concurrent.Semaphore
-import java.util.concurrent.TimeUnit
 
 class VideoFragment : Fragment(), View.OnClickListener {
 
@@ -43,15 +37,17 @@ class VideoFragment : Fragment(), View.OnClickListener {
         const val TOUCHED = 702
     }
 
-    private lateinit var cameraActivity: Activity
+    object Constants {
+        const val VIRTUAL_DISPLAY_NAME = "ScreenRec"
+    }
 
-    private var captureSession: CameraCaptureSession? = null
-    private lateinit var previewRequestBuilder: CaptureRequest.Builder
+    private val displayMetrics by lazy { DisplayMetrics() }
 
-    private var backgroundThread: HandlerThread? = null
-    private var backgroundHandler: Handler? = null
+    private lateinit var camera: FrontCamera
 
-//    private lateinit var camera: FrontCamera
+    private lateinit var projectionManager: MediaProjectionManager
+    private lateinit var projection: MediaProjection
+    private lateinit var virtualDisplay: VirtualDisplay
 
     private lateinit var video: VideoView
     private lateinit var btnStart: ImageButton
@@ -63,38 +59,19 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     private var recorder: MediaRecorder? = null
 
-    var device: CameraDevice? = null
-    var id: String? = null
-    var char: CameraCharacteristics? = null
-
-    //A callback object for receiving updates about the state of a camera device.
-    private val stateCallback = object : CameraDevice.StateCallback() {
-
-        override fun onOpened(cam: CameraDevice) {
-            device = cam
-        }
-        //Camera no longer available for use
-        override fun onDisconnected(cam: CameraDevice) {
-            device?.close()
-            device = null
-        }
-
-        override fun onError(cam: CameraDevice, error: Int) {
-            device?.close()
-            device = null
-            cameraActivity.finish()
-        }
-    }
-
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
 
-        cameraActivity = activity as Activity
+        activity?.let {
+            it.windowManager.defaultDisplay.getMetrics(displayMetrics)
 
-//        camera = FrontCamera(activity ?: return null)
-//        if(camera.open())
-//            Log.i("VideoFrag", "onCreateView(): camera opened.")
-        open()
+            getScreenCaptureManager()
+            camera = FrontCamera(it).apply {
+                open()
+            }
+        }
+
+        recorder = MediaRecorder()
 
         vidUri = Uri.parse("android.resource://com.creations.rimov.esbeta/" + R.raw.sample_video)
 
@@ -117,55 +94,35 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     override fun onResume() {
         super.onResume()
-        startBackgroundThread()
 
-        open()
+        camera.apply {
+            startBgThread()
+            open()
+        }
+
+        recorder = MediaRecorder()
     }
 
     override fun onPause() {
-        close()
-        stopBackgroundThread()
+
+        camera.apply {
+            close()
+            stopBgThread()
+        }
+
         super.onPause()
     }
 
-    @SuppressLint("MissingPermission")
-    fun open() {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 
-        if(!PermissionsUtil.haveVideoPermission(cameraActivity)) {
-            Log.i("FrontCamera", "open(): don't have required permissions!")
-            PermissionsUtil.requestVideoPermission(cameraActivity)
-            return
-        }
+        Log.i("VideoFrag", "onActivityResult(): requestCode is media projection? ${requestCode == PermissionsUtil.MEDIA_PROJECTION_REQUEST}")
 
-        Log.i("FrontCamera", "open(): permissions obtained.")
-
-        val manager = cameraActivity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        try {
-            id = CameraUtil.getFrontCameraId(manager)
-            char = manager.getCameraCharacteristics(id ?: "1")
-
-            recorder = MediaRecorder()
-            manager.openCamera(id!!, stateCallback, null)
-
-        } catch(e: CameraAccessException) {
-            Toast.makeText(activity, "Cannot open camera", Toast.LENGTH_SHORT).show()
-            cameraActivity.finish()
-
-        } catch(e: NullPointerException) { //camera2 is used but not supported
-            Toast.makeText(activity, "Device not compatible with used API (camera2)", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    fun close() {
-
-        try {
-            closePreviewSession()
-            device?.close()
-            device = null
-            recorder?.release()
-            recorder = null
-        } catch (e: InterruptedException) {
-            throw RuntimeException("Interrupted while trying to lock camera closing.", e)
+        when(requestCode) {
+            PermissionsUtil.MEDIA_PROJECTION_REQUEST -> {
+                data?.let {
+                    projection = projectionManager.getMediaProjection(resultCode, it)
+                }
+            }
         }
     }
 
@@ -177,40 +134,15 @@ class VideoFragment : Fragment(), View.OnClickListener {
     }
 
     private fun startVideo() {
-        if(device == null || video.isPlaying) {
-            Toast.makeText(context, "Cannot start video! Device null? ${device == null}", Toast.LENGTH_SHORT).show()
+        if(camera.device == null || video.isPlaying) {
+            Toast.makeText(context, "Cannot start video! Device null? ${camera.device == null}", Toast.LENGTH_SHORT).show()
             return
         }
 
+        initVirtualDisplay()
         initRecorder()
-
         // Set up Surface for camera preview and MediaRecorder
-        val recorderSurface = recorder!!.surface
-        val surfaces = ArrayList<Surface>().apply {
-            add(recorderSurface)
-        }
-
-        previewRequestBuilder = device!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-            addTarget(recorderSurface)
-        }
-
-        device!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-            addTarget(recorderSurface)
-        }
-
-        device!!.createCaptureSession(surfaces,
-            object : CameraCaptureSession.StateCallback() {
-
-                override fun onConfigured(cameraCaptureSession: CameraCaptureSession) {
-                    captureSession = cameraCaptureSession
-                    updatePreview()
-                    activity?.runOnUiThread {
-                        recorder?.start()
-                    }
-                }
-
-                override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) {}
-            }, backgroundHandler)
+        camera.setUpCaptureSession(arrayListOf(recorder!!.surface), recorder)
 
         setPlayStatus(PlayStatus.PLAYING)
 
@@ -220,11 +152,17 @@ class VideoFragment : Fragment(), View.OnClickListener {
     private fun stopVideo() {
 
         video.stopPlayback()
-        close()
+        camera.close()
         recorder?.apply {
             stop()
             reset()
+//            release()
         }
+
+        projection.stop()
+        virtualDisplay.release()
+
+//        recorder = null
 
         //Reset video
         prepareVideo(vidUri)
@@ -244,7 +182,7 @@ class VideoFragment : Fragment(), View.OnClickListener {
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile(path)
             setVideoFrameRate(30)
-            getLargestSize()?.apply {
+            camera.getLargestSize()?.apply {
                 setVideoSize(this.width, this.height)
             }
 
@@ -253,6 +191,19 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
             prepare()
         }
+    }
+
+    private fun initVirtualDisplay() {
+
+        if(!::projection.isInitialized) return
+
+        virtualDisplay = projection.createVirtualDisplay(
+            Constants.VIRTUAL_DISPLAY_NAME,
+            video.measuredWidth,
+            video.measuredHeight,
+            displayMetrics.densityDpi,
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            recorder?.surface, null, null)
     }
 
     private fun setPlayStatus(status: Int) {
@@ -274,59 +225,10 @@ class VideoFragment : Fragment(), View.OnClickListener {
         }
     }
 
-    private fun getLargestSize(): Size? {
-        val configMap = char?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-            ?: throw RuntimeException("Cannot retrieve video size")
+    private fun getScreenCaptureManager() {
+        projectionManager = activity?.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 
-
-        return configMap.getOutputSizes(MediaRecorder::class.java).firstOrNull {
-            it.width <= 1080
-        }
-    }
-
-    private fun setUpCaptureRequestBuilder(builder: CaptureRequest.Builder?) {
-        builder?.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
-    }
-
-    private fun updatePreview() {
-        if (device  == null) return
-
-        try {
-            setUpCaptureRequestBuilder(previewRequestBuilder)
-            HandlerThread("CameraPreview").start()
-            captureSession?.setRepeatingRequest(previewRequestBuilder.build(),
-                null, backgroundHandler)
-        } catch (e: CameraAccessException) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun closePreviewSession() {
-        captureSession?.close()
-        captureSession = null
-    }
-
-    /**
-     * Starts a background thread and its [Handler].
-     */
-    private fun startBackgroundThread() {
-        backgroundThread = HandlerThread("CameraBackground")
-        backgroundThread?.start()
-        backgroundHandler = Handler(backgroundThread?.looper)
-    }
-
-    /**
-     * Stops the background thread and its [Handler].
-     */
-    private fun stopBackgroundThread() {
-        backgroundThread?.quitSafely()
-        try {
-            backgroundThread?.join()
-            backgroundThread = null
-            backgroundHandler = null
-        } catch (e: InterruptedException) {
-            e.printStackTrace()
-        }
+        startActivityForResult(projectionManager.createScreenCaptureIntent(), PermissionsUtil.MEDIA_PROJECTION_REQUEST)
     }
 
     override fun onClick(v: View?) {

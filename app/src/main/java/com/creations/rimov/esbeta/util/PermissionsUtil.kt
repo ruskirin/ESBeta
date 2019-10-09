@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
@@ -12,6 +14,7 @@ import androidx.core.content.ContextCompat
 object PermissionsUtil {
 
     const val VIDEO_REQUEST_CODE = 9000
+    const val MEDIA_PROJECTION_REQUEST = 8000
 
     val VIDEO_PERMISSIONS = arrayOf(
         Manifest.permission.CAMERA,
