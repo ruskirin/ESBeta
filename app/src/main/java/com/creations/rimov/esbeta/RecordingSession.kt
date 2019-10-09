@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.util.Size
+import android.util.SparseIntArray
 import android.view.Surface
 import android.widget.Toast
 import com.creations.rimov.esbeta.util.CameraUtil
@@ -21,6 +22,21 @@ import java.lang.RuntimeException
  *   https://github.com/android/camera-samples/blob/master/Camera2VideoKotlin/Application/src/main/java/com/example/android/camera2video/Camera2VideoFragment.kt
  */
 class RecordingSession(private val recordActivity: Activity) {
+
+    object ScreenOrientations {
+        val NORMAL = SparseIntArray().apply {
+            append(Surface.ROTATION_0, 90)
+            append(Surface.ROTATION_90, 0)
+            append(Surface.ROTATION_180, 270)
+            append(Surface.ROTATION_270, 180)
+        }
+        val INVERSE = SparseIntArray().apply {
+            append(Surface.ROTATION_0, 270)
+            append(Surface.ROTATION_90, 180)
+            append(Surface.ROTATION_180, 90)
+            append(Surface.ROTATION_270, 0)
+        }
+    }
 
     private var bgThread: HandlerThread? = null
     private var bgHandler: Handler? = null
@@ -96,17 +112,13 @@ class RecordingSession(private val recordActivity: Activity) {
     }
 
     fun setUpCaptureSession() {
+        val surfaces = arrayListOf<Surface>(camRecorder!!.surface)
 
         previewRequestBuilder = camDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
             addTarget(camRecorder!!.surface)
         }
 
-        camDevice?.let {
-            it.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-                addTarget(camRecorder!!.surface) //First element is the MediaRecorder surface
-            }
-
-            it.createCaptureSession(
+        camDevice?.createCaptureSession(
                 surfaces,
                 object : CameraCaptureSession.StateCallback() {
 
@@ -121,7 +133,6 @@ class RecordingSession(private val recordActivity: Activity) {
                     override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) {}
                 },
                 bgHandler)
-        }
     }
 
     /**
@@ -161,9 +172,20 @@ class RecordingSession(private val recordActivity: Activity) {
         }
     }
 
-    fun initCamRecorder(path: String) {
+    fun initCamRecorder(path: String, orientation: Int) {
 
         Log.i("RecordingSession", "initCamRecorder(): path is $path")
+
+        when(camChar?.get(CameraCharacteristics.SENSOR_ORIENTATION)) {
+            //Normal orientation
+            90 -> {
+                camRecorder?.setOrientationHint(ScreenOrientations.NORMAL.get(orientation))
+            }
+            //Reverse orientation
+            270 -> {
+                camRecorder?.setOrientationHint(ScreenOrientations.INVERSE.get(orientation))
+            }
+        }
 
         camRecorder?.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -171,6 +193,7 @@ class RecordingSession(private val recordActivity: Activity) {
 
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile(path)
+            setVideoEncodingBitRate(8000000) //8Mbps
             setVideoFrameRate(30)
             getLargestCamSize()?.apply {
                 setVideoSize(this.width, this.height)
@@ -183,20 +206,18 @@ class RecordingSession(private val recordActivity: Activity) {
         }
     }
 
-    fun initScreenRecorder(path: String) {
+    fun initScreenRecorder(path: String, screenDimen: Size) {
 
         Log.i("RecordingSession", "initScreenRecorder(): path is $path")
 
-        camRecorder?.apply {
+        screenRecorder?.apply {
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
 
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile(path)
-            setVideoFrameRate(30)
-            getLargestCamSize()?.apply {
-                setVideoSize(this.width, this.height)
-            }
-
+            setVideoEncodingBitRate(2000000) //2Mbps
+            setVideoFrameRate(20)
+            setVideoSize(screenDimen.width, screenDimen.height)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
 
             prepare()

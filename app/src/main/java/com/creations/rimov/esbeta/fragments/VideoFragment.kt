@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
+import android.util.Size
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -42,6 +43,7 @@ class VideoFragment : Fragment(), View.OnClickListener {
     }
 
     private val displayMetrics by lazy { DisplayMetrics() }
+    private var screenOrientation: Int = 0
 
     private lateinit var recordingSession: RecordingSession
 
@@ -61,6 +63,11 @@ class VideoFragment : Fragment(), View.OnClickListener {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
 
         activity?.let {
+            it.windowManager.defaultDisplay.let { display ->
+                display.getMetrics(displayMetrics)
+                screenOrientation = display.rotation
+            }
+
             it.windowManager.defaultDisplay.getMetrics(displayMetrics)
 
             getScreenCaptureManager()
@@ -161,12 +168,12 @@ class VideoFragment : Fragment(), View.OnClickListener {
         //[0] is the camera path, [1] is the screen path
         val paths: Array<String> = getVideoPaths()
 
-        initVirtualDisplay()
-        recordingSession.initCamRecorder(paths[0])
-        recordingSession.initScreenRecorder(paths[1])
+        recordingSession.initCamRecorder(paths[0], screenOrientation)
+        recordingSession.initScreenRecorder(paths[1], Size(displayMetrics.widthPixels, displayMetrics.heightPixels))
         // Set up Surface for recordingSession preview and MediaRecorder
-        recordingSession.setUpCaptureSession(
-            arrayListOf(camRecorder!!.surface), camRecorder)
+        recordingSession.setUpCaptureSession()
+
+        initVirtualDisplay()
 
         setPlayStatus(PlayStatus.PLAYING)
 
@@ -181,6 +188,11 @@ class VideoFragment : Fragment(), View.OnClickListener {
             stop()
             reset()
 //            release()
+        }
+
+        recordingSession.screenRecorder?.apply {
+            stop()
+            reset()
         }
 
         projection.stop()
@@ -201,8 +213,8 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
         virtualDisplay = projection.createVirtualDisplay(
             Constants.VIRTUAL_DISPLAY_NAME,
-            video.measuredWidth,
-            video.measuredHeight,
+            displayMetrics.widthPixels,
+            displayMetrics.heightPixels,
             displayMetrics.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             recordingSession.screenRecorder?.surface, null, null)
