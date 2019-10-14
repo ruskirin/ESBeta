@@ -12,10 +12,12 @@ import android.util.Size
 import android.util.SparseIntArray
 import android.view.Surface
 import android.widget.Toast
+import com.creations.rimov.esbeta.extensions.stdPattern
 import com.creations.rimov.esbeta.util.CameraUtil
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import java.lang.NullPointerException
 import java.lang.RuntimeException
+import java.util.*
 
 /**
  * Used the following for guidance:
@@ -31,10 +33,14 @@ class RecordingSession(private val recordActivity: Activity) {
             append(Surface.ROTATION_270, 180)
         }
         val INVERSE = SparseIntArray().apply {
-            append(Surface.ROTATION_0, 270)
-            append(Surface.ROTATION_90, 180)
-            append(Surface.ROTATION_180, 90)
-            append(Surface.ROTATION_270, 0)
+            append(Surface.ROTATION_0, 90)
+            append(Surface.ROTATION_90, 0)
+            append(Surface.ROTATION_180, 270)
+            append(Surface.ROTATION_270, 180)
+//            append(Surface.ROTATION_0, 270)
+//            append(Surface.ROTATION_90, 180)
+//            append(Surface.ROTATION_180, 90)
+//            append(Surface.ROTATION_270, 0)
         }
     }
 
@@ -142,9 +148,9 @@ class RecordingSession(private val recordActivity: Activity) {
 
         bgThread = HandlerThread("CameraBackground").apply {
             start()
-            bgHandler = Handler(this.looper)
         }
-//        bgHandler = Handler(bgThread?.looper)
+
+        bgHandler = Handler(bgThread?.looper)
     }
 
     /**
@@ -175,13 +181,14 @@ class RecordingSession(private val recordActivity: Activity) {
     fun initCamRecorder(path: String, orientation: Int) {
 
         Log.i("RecordingSession", "initCamRecorder(): path is $path")
+        Log.i("RecordingSession", "initCamRecorder(): orientation is $orientation")
 
         when(camChar?.get(CameraCharacteristics.SENSOR_ORIENTATION)) {
             //Normal orientation
             90 -> {
                 camRecorder?.setOrientationHint(ScreenOrientations.NORMAL.get(orientation))
             }
-            //Reverse orientation
+            //Reverse orientation (ends up using the same values for either orientation)
             270 -> {
                 camRecorder?.setOrientationHint(ScreenOrientations.INVERSE.get(orientation))
             }
@@ -216,7 +223,10 @@ class RecordingSession(private val recordActivity: Activity) {
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setOutputFile(path)
             setVideoEncodingBitRate(2000000) //2Mbps
-            setVideoFrameRate(20)
+            setVideoFrameRate(30)
+//            getLargestCamSize()?.apply {
+//                setVideoSize(this.width, this.height)
+//            }
             setVideoSize(screenDimen.width, screenDimen.height)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
 
@@ -244,5 +254,19 @@ class RecordingSession(private val recordActivity: Activity) {
     private fun closePreviewSession() {
         captureSession?.close()
         captureSession = null
+    }
+
+    fun getVideoPaths(ctx: Context): Array<String> {
+
+        val date = Date().stdPattern()
+        val directory = ctx.getExternalFilesDir(null)
+        directory?.mkdirs()
+
+        val dirPath = directory?.absolutePath
+        val cam = CameraUtil.VID_PREFIX_CAM + date + ".mp4"
+        val screen = CameraUtil.VID_PREFIX_SCREEN + date + ".mp4"
+
+        return arrayOf("$dirPath/$cam", "$dirPath/$screen")
+//        return "${directory?.absolutePath}/$cam"
     }
 }

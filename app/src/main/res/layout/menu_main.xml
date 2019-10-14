@@ -19,7 +19,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         app:button_text="@string/menu_b"
-        app:detail_text=""/>
+        app:detail_text="@string/menu_b_detail"/>
 
     <view class="com.creations.rimov.esbeta.fragments.MainMenuFragment$MenuBtnExpand"
         android:id="@+id/menuC"

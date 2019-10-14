@@ -120,9 +120,6 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 
-        Log.i("VideoFrag", "onActivityResult(): requestCode is media projection? " +
-                "${requestCode == PermissionsUtil.MEDIA_PROJECTION_REQUEST}")
-
         when(requestCode) {
             PermissionsUtil.MEDIA_PROJECTION_REQUEST -> {
                 data?.let {
@@ -166,7 +163,7 @@ class VideoFragment : Fragment(), View.OnClickListener {
         }
 
         //[0] is the camera path, [1] is the screen path
-        val paths: Array<String> = getVideoPaths()
+        val paths: Array<String> = recordingSession.getVideoPaths(context ?: return)
 
         recordingSession.initCamRecorder(paths[0], screenOrientation)
         recordingSession.initScreenRecorder(paths[1], Size(displayMetrics.widthPixels, displayMetrics.heightPixels))
@@ -211,8 +208,12 @@ class VideoFragment : Fragment(), View.OnClickListener {
 
         if(!::projection.isInitialized) return
 
+        val size = recordingSession.getLargestCamSize() ?: return
+
         virtualDisplay = projection.createVirtualDisplay(
             Constants.VIRTUAL_DISPLAY_NAME,
+//            size.width,
+//            size.height,
             displayMetrics.widthPixels,
             displayMetrics.heightPixels,
             displayMetrics.densityDpi,
@@ -243,20 +244,5 @@ class VideoFragment : Fragment(), View.OnClickListener {
         projectionManager = activity?.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 
         startActivityForResult(projectionManager.createScreenCaptureIntent(), PermissionsUtil.MEDIA_PROJECTION_REQUEST)
-    }
-
-    private fun getVideoPaths(): Array<String> {
-        val ctx = context ?: return arrayOf()
-
-        val date = Date().stdPattern()
-        val directory = ctx.getExternalFilesDir(null)
-        directory?.mkdirs()
-
-        val dirPath = directory?.absolutePath
-        val cam = CameraUtil.VID_PREFIX_CAM + date + ".mp4"
-        val screen = CameraUtil.VID_PREFIX_SCREEN + date + ".mp4"
-
-        return arrayOf("$dirPath/$cam", "$dirPath/$screen")
-//        return "${directory?.absolutePath}/$cam"
     }
 }
