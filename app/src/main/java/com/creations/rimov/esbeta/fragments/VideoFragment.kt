@@ -18,13 +18,11 @@ import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.Toast
 import android.widget.VideoView
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import com.creations.rimov.esbeta.RecordingSession
 import com.creations.rimov.esbeta.R
-import com.creations.rimov.esbeta.extensions.gone
-import com.creations.rimov.esbeta.extensions.invisible
-import com.creations.rimov.esbeta.extensions.stdPattern
-import com.creations.rimov.esbeta.extensions.visible
+import com.creations.rimov.esbeta.extensions.*
 import com.creations.rimov.esbeta.util.CameraUtil
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import kotlinx.android.synthetic.main.testing_video.view.*
@@ -42,6 +40,7 @@ class VideoFragment : Fragment(), View.OnClickListener {
         const val VIRTUAL_DISPLAY_NAME = "ScreenRec"
     }
 
+    private val TAG = this::class.java.simpleName
     private val displayMetrics by lazy { DisplayMetrics() }
     private var screenOrientation: Int = 0
 
@@ -104,7 +103,6 @@ class VideoFragment : Fragment(), View.OnClickListener {
             startBgThread()
             openCam()
         }
-
 //        camRecorder = MediaRecorder()
     }
 
@@ -166,7 +164,7 @@ class VideoFragment : Fragment(), View.OnClickListener {
         val paths: Array<String> = recordingSession.getVideoPaths(context ?: return)
 
         recordingSession.initCamRecorder(paths[0], screenOrientation)
-        recordingSession.initScreenRecorder(paths[1], Size(displayMetrics.widthPixels, displayMetrics.heightPixels))
+        recordingSession.initScreenRecorder(paths[1])
         // Set up Surface for recordingSession preview and MediaRecorder
         recordingSession.setUpCaptureSession()
 
@@ -180,11 +178,14 @@ class VideoFragment : Fragment(), View.OnClickListener {
     private fun stopVideo() {
 
         video.stopPlayback()
+
+        projection.stop()
+        virtualDisplay.release()
+
         recordingSession.closeCam()
         recordingSession.camRecorder?.apply {
             stop()
             reset()
-//            release()
         }
 
         recordingSession.screenRecorder?.apply {
@@ -192,30 +193,21 @@ class VideoFragment : Fragment(), View.OnClickListener {
             reset()
         }
 
-        projection.stop()
-        virtualDisplay.release()
-
-//        camRecorder = null
-
         //Reset video
+        video.suspend()
         prepareVideo(vidUri)
-        setPlayStatus(PlayStatus.SET)
     }
-
-
 
     private fun initVirtualDisplay() {
 
         if(!::projection.isInitialized) return
 
-        val size = recordingSession.getLargestCamSize() ?: return
+        val size = recordingSession.camSize ?: return
 
         virtualDisplay = projection.createVirtualDisplay(
             Constants.VIRTUAL_DISPLAY_NAME,
-//            size.width,
-//            size.height,
-            displayMetrics.widthPixels,
-            displayMetrics.heightPixels,
+            size.width,
+            size.height,
             displayMetrics.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             recordingSession.screenRecorder?.surface, null, null)
@@ -232,7 +224,8 @@ class VideoFragment : Fragment(), View.OnClickListener {
             }
             PlayStatus.PLAYING -> {
                 btnStart.gone()
-                btnStop.invisible()
+//                btnStop.gone() Some issue with registering VideoView clicks on tablet, forced to keep btnStop visible always
+                btnStop.visible()
             }
             PlayStatus.TOUCHED -> {
                 btnStop.visible()

@@ -12,12 +12,14 @@ import android.util.Size
 import android.util.SparseIntArray
 import android.view.Surface
 import android.widget.Toast
+import com.creations.rimov.esbeta.extensions.infoLog
 import com.creations.rimov.esbeta.extensions.stdPattern
 import com.creations.rimov.esbeta.util.CameraUtil
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import java.lang.NullPointerException
 import java.lang.RuntimeException
 import java.util.*
+import kotlin.Comparator
 
 /**
  * Used the following for guidance:
@@ -32,6 +34,7 @@ class RecordingSession(private val recordActivity: Activity) {
             append(Surface.ROTATION_180, 270)
             append(Surface.ROTATION_270, 180)
         }
+
         val INVERSE = SparseIntArray().apply {
             append(Surface.ROTATION_0, 90)
             append(Surface.ROTATION_90, 0)
@@ -56,6 +59,7 @@ class RecordingSession(private val recordActivity: Activity) {
     var camDevice: CameraDevice? = null
     var camId: String? = null
     var camChar: CameraCharacteristics? = null
+    var camSize: Size? = null
 
     //A callback object for receiving updates about the state of a camera camDevice.
     private val stateCallback = object : CameraDevice.StateCallback() {
@@ -95,6 +99,8 @@ class RecordingSession(private val recordActivity: Activity) {
             camChar = manager.getCameraCharacteristics(camId ?: "1")
 
             manager.openCamera(camId!!, stateCallback, null)
+
+            camSize = getWorkingCamSize()
 
         } catch(e: CameraAccessException) {
             Toast.makeText(recordActivity, "Cannot openCam camera", Toast.LENGTH_SHORT).show()
@@ -141,9 +147,6 @@ class RecordingSession(private val recordActivity: Activity) {
                 bgHandler)
     }
 
-    /**
-     * Starts a background thread and its [Handler].
-     */
     fun startBgThread() {
 
         bgThread = HandlerThread("CameraBackground").apply {
@@ -153,9 +156,6 @@ class RecordingSession(private val recordActivity: Activity) {
         bgHandler = Handler(bgThread?.looper)
     }
 
-    /**
-     * Stops the background thread and its [Handler].
-     */
     fun stopBgThread() {
 
         bgThread?.quitSafely()
@@ -169,43 +169,44 @@ class RecordingSession(private val recordActivity: Activity) {
         }
     }
 
-    fun getLargestCamSize(): Size? {
+    fun getWorkingCamSize(): Size? {
         val configMap = camChar?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
             ?: throw RuntimeException("Cannot retrieve video size")
 
-        return configMap.getOutputSizes(MediaRecorder::class.java).firstOrNull {
-            it.width <= 1080
-        }
+        val selected = configMap.getOutputSizes(MediaRecorder::class.java).maxWith(
+            object: Comparator<Size> {
+                override fun compare(s1: Size, s2: Size) = when {
+                    (s1.height == 720) && (s1.width > s2.width) -> 1
+                    (s1.height == 720) && (s1.width == s2.width) -> 0
+                    else -> -1
+                }
+            })
+
+        recordActivity::class.java.simpleName.infoLog("Selected size: ${selected?.width} by ${selected?.height}")
+        return selected
     }
 
     fun initCamRecorder(path: String, orientation: Int) {
 
         Log.i("RecordingSession", "initCamRecorder(): path is $path")
-        Log.i("RecordingSession", "initCamRecorder(): orientation is $orientation")
 
         when(camChar?.get(CameraCharacteristics.SENSOR_ORIENTATION)) {
             //Normal orientation
-            90 -> {
-                camRecorder?.setOrientationHint(ScreenOrientations.NORMAL.get(orientation))
-            }
-            //Reverse orientation (ends up using the same values for either orientation)
-            270 -> {
-                camRecorder?.setOrientationHint(ScreenOrientations.INVERSE.get(orientation))
-            }
+            90 -> camRecorder?.setOrientationHint(ScreenOrientations.NORMAL.get(orientation))
+            //TODO: output video captured through a certain horizontal rotation flips the video, explore Android official docs for possible solution (possible one saw before)
+            270 -> camRecorder?.setOrientationHint(ScreenOrientations.INVERSE.get(orientation))
         }
 
         camRecorder?.apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
-
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setOutputFile(path)
-            setVideoEncodingBitRate(8000000) //8Mbps
-            setVideoFrameRate(30)
-            getLargestCamSize()?.apply {
-                setVideoSize(this.width, this.height)
-            }
 
+            setVideoFrameRate(20)
+            setVideoEncodingBitRate(16000000) //16Mbps
+            camSize?.let { setVideoSize(it.width, it.height) }
+
+            setOutputFile(path)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
 
@@ -213,21 +214,19 @@ class RecordingSession(private val recordActivity: Activity) {
         }
     }
 
-    fun initScreenRecorder(path: String, screenDimen: Size) {
+    fun initScreenRecorder(path: String) {
 
         Log.i("RecordingSession", "initScreenRecorder(): path is $path")
 
         screenRecorder?.apply {
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
-
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-            setOutputFile(path)
+
+            setVideoFrameRate(20)
             setVideoEncodingBitRate(2000000) //2Mbps
-            setVideoFrameRate(30)
-//            getLargestCamSize()?.apply {
-//                setVideoSize(this.width, this.height)
-//            }
-            setVideoSize(screenDimen.width, screenDimen.height)
+            camSize?.let { setVideoSize(it.width, it.height) }
+
+            setOutputFile(path)
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
 
             prepare()
@@ -235,7 +234,12 @@ class RecordingSession(private val recordActivity: Activity) {
     }
 
     private fun setUpCaptureRequestBuilder(builder: CaptureRequest.Builder?) {
-        builder?.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
+
+        builder?.apply {
+            set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
+            set(CaptureRequest.EDGE_MODE, CameraMetadata.EDGE_MODE_HIGH_QUALITY)
+//            set(CaptureRequest.TONEMAP_MODE, CameraMetadata.TONEMAP_MODE_HIGH_QUALITY)
+        }
     }
 
     private fun updatePreview() {
@@ -244,8 +248,8 @@ class RecordingSession(private val recordActivity: Activity) {
         try {
             setUpCaptureRequestBuilder(previewRequestBuilder)
             HandlerThread("CameraPreview").start()
-            captureSession?.setRepeatingRequest(previewRequestBuilder.build(),
-                null, bgHandler)
+            captureSession?.setRepeatingRequest(
+                previewRequestBuilder.build(), null, bgHandler)
         } catch (e: CameraAccessException) {
             e.printStackTrace()
         }
@@ -267,6 +271,5 @@ class RecordingSession(private val recordActivity: Activity) {
         val screen = CameraUtil.VID_PREFIX_SCREEN + date + ".mp4"
 
         return arrayOf("$dirPath/$cam", "$dirPath/$screen")
-//        return "${directory?.absolutePath}/$cam"
     }
 }

@@ -9,6 +9,11 @@
     android:gravity="center"
     tools:context=".MainActivity">
 
+    <Toolbar
+        android:id="@+id/mainToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"/>
+
     <fragment
         android:id="@+id/mainNavHostFrag"
         android:name="androidx.navigation.fragment.NavHostFragment"

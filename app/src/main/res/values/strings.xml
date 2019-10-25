@@ -8,4 +8,7 @@
 
     <string name="menu_a_detail">React to short video clips</string>
     <string name="menu_b_detail">React to short stories</string>
+
+    <string name="testing_book_btn_begin">Begin</string>
+    <string name="testing_book_btn_end">End</string>
 </resources>

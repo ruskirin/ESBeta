@@ -15,9 +15,21 @@
             app:exitAnim="@anim/nav_default_exit_anim"
             app:popEnterAnim="@anim/nav_default_pop_enter_anim"
             app:popExitAnim="@anim/nav_default_pop_exit_anim" />
+        <action
+            android:id="@+id/action_mainMenuFragment_to_bookFragment"
+            app:destination="@id/bookFragment" />
     </fragment>
     <fragment
         android:id="@+id/videoFragment"
         android:name="com.creations.rimov.esbeta.fragments.VideoFragment"
         android:label="VideoFragment" />
+    <fragment
+        android:id="@+id/bookFragment"
+        android:name="com.creations.rimov.esbeta.fragments.BookFragment"
+        android:label="BookFragment" >
+        <argument
+            android:name="book"
+            app:argType="integer"
+            android:defaultValue="-1" />
+    </fragment>
 </navigation>

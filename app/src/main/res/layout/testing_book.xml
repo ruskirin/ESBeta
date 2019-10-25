@@ -3,9 +3,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/bookRecyclerView"
+    <ImageView
+        android:id="@+id/bookPage"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent"
+        android:orientation="vertical"/>
+
+    <ImageView
+        android:id="@+id/bookBtn"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:adjustViewBounds="true"
+        android:tag="@string/testing_book_btn_begin"
+        android:background="@color/colorPrimary"
+        android:src="@drawable/ic_play"/>
 
 </FrameLayout>

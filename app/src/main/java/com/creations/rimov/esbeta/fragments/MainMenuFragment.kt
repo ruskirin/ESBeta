@@ -43,12 +43,10 @@ class MainMenuFragment : Fragment(), View.OnClickListener {
             //btnGo has been triggered, find which item it belongs to
             when(parent.id) {
                 R.id.menuA -> {
-                    Log.i("MainMenuFrag", "onClick(): click to next fragment")
-
                     findNavController().navigate(R.id.action_mainMenuFragment_to_videoFragment)
                 }
                 R.id.menuB -> {
-
+                    findNavController().navigate(R.id.action_mainMenuFragment_to_bookFragment)
                 }
                 R.id.menuC -> {
 

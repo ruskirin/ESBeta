@@ -8,7 +8,9 @@
         android:id="@+id/videoView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="center"/>
+        android:layout_gravity="center"
+        android:focusable="true"
+        android:clickable="true"/>
 
     <ImageButton
         android:id="@+id/videoBtnStart"
