@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.creations.rimov.esbeta.R
+import com.creations.rimov.esbeta.extensions.infoLog
 import java.io.File
 import java.io.FileOutputStream
 
@@ -37,7 +38,9 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
         var bitmap: Bitmap
 
-        page = renderer.openPage(pageNum.value ?: return null)
+        this::class.java.simpleName.infoLog("Rendering page ${pageNum.value}")
+
+        page = renderer.openPage(pageNum.value ?: 0)
             .apply {
                 bitmap = Bitmap.createBitmap(this.width, this.height, Bitmap.Config.ARGB_8888)
 

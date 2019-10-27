@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/bookPrev"
+        android:title="@string/toolbar_book_previous"
+        android:orderInCategory="1"
+        android:icon="@drawable/ic_arrow_left"
+        app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/bookNext"
+        android:title="@string/toolbar_book_next"
+        android:orderInCategory="2"
+        android:icon="@drawable/ic_arrow_right"
+        app:showAsAction="always"/>
+
+</menu>

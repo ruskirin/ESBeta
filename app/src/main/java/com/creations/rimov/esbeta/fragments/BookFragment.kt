@@ -23,6 +23,7 @@ import com.creations.rimov.esbeta.extensions.gone
 import com.creations.rimov.esbeta.extensions.infoLog
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import com.creations.rimov.esbeta.view_models.BookViewModel
+import com.creations.rimov.esbeta.view_models.GlobalViewModel
 import kotlinx.android.synthetic.main.testing_book.view.*
 
 /**
@@ -34,7 +35,8 @@ class BookFragment : Fragment(), View.OnClickListener {
 
     private val TAG = this::class.java.simpleName
 
-    private val vm: BookViewModel by lazy {
+    private lateinit var globalVm: GlobalViewModel
+    private val localVm: BookViewModel by lazy {
         ViewModelProviders.of(this).get(BookViewModel::class.java)
     }
 
@@ -56,6 +58,8 @@ class BookFragment : Fragment(), View.OnClickListener {
         super.onCreate(savedInstanceState)
 
         activity?.let {
+            globalVm = ViewModelProviders.of(it).get(GlobalViewModel::class.java)
+
             it.windowManager.defaultDisplay.let { display ->
                 display.getMetrics(displayMetrics)
                 screenOrientation = display.rotation
@@ -70,7 +74,7 @@ class BookFragment : Fragment(), View.OnClickListener {
         }
 
         //TODO: display error image
-        vm.initRenderer(BOOKS[args.book] ?: "esbook_1.pdf")
+        localVm.initRenderer(BOOKS[args.book] ?: "esbook_1.pdf")
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -79,8 +83,10 @@ class BookFragment : Fragment(), View.OnClickListener {
         pageImage = view.bookPage
         btn = view.bookBtn
 
-        vm.getPageNum().observe(this, Observer {
-            pageImage.setImageBitmap(vm.getRenderedPage())
+        globalVm.getPageNum().observe(this, Observer {
+            localVm.setPageNum(it)
+
+            pageImage.setImageBitmap(localVm.getRenderedPage())
         })
 
         btn.setOnClickListener(this)
@@ -127,6 +133,8 @@ class BookFragment : Fragment(), View.OnClickListener {
 
     private fun start() {
 
+        globalVm.setPageNum(0)
+
         if(recordingSession.camDevice == null) {
             Toast.makeText(context, "Cannot start video! Device null? ${recordingSession.camDevice == null}", Toast.LENGTH_SHORT).show()
             return
@@ -143,8 +151,6 @@ class BookFragment : Fragment(), View.OnClickListener {
         recordingSession.setUpCaptureSession()
 
         initVirtualDisplay()
-
-        vm.setPageNum(0)
     }
 
     private fun stop() {

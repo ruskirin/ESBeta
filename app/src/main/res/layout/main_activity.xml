@@ -9,11 +9,6 @@
     android:gravity="center"
     tools:context=".MainActivity">
 
-    <Toolbar
-        android:id="@+id/mainToolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"/>
-
     <fragment
         android:id="@+id/mainNavHostFrag"
         android:name="androidx.navigation.fragment.NavHostFragment"
@@ -21,5 +16,14 @@
         android:layout_height="match_parent"
         app:navGraph="@navigation/nav_graph"
         app:defaultNavHost="true"/>
+
+    <com.creations.rimov.esbeta.views.MainToolbar
+        android:id="@+id/mainToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
+
 
 </FrameLayout>

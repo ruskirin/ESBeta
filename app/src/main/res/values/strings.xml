@@ -11,4 +11,7 @@
 
     <string name="testing_book_btn_begin">Begin</string>
     <string name="testing_book_btn_end">End</string>
+
+    <string name="toolbar_book_previous">Previous</string>
+    <string name="toolbar_book_next">Next</string>
 </resources>
