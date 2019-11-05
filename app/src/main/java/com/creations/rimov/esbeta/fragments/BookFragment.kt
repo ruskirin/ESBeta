@@ -17,10 +17,12 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.navigation.fragment.navArgs
+import com.bumptech.glide.Glide
 import com.creations.rimov.esbeta.R
 import com.creations.rimov.esbeta.RecordingSession
 import com.creations.rimov.esbeta.extensions.gone
 import com.creations.rimov.esbeta.extensions.infoLog
+import com.creations.rimov.esbeta.extensions.shortToast
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import com.creations.rimov.esbeta.view_models.BookViewModel
 import com.creations.rimov.esbeta.view_models.GlobalViewModel
@@ -86,7 +88,10 @@ class BookFragment : Fragment(), View.OnClickListener {
         globalVm.getPageNum().observe(this, Observer {
             localVm.setPageNum(it)
 
-            pageImage.setImageBitmap(localVm.getRenderedPage())
+            Glide.with(this)
+                .load(localVm.getRenderedPage(displayMetrics.widthPixels))
+                .centerCrop()
+                .into(pageImage)
         })
 
         btn.setOnClickListener(this)
@@ -136,14 +141,14 @@ class BookFragment : Fragment(), View.OnClickListener {
         globalVm.setPageNum(0)
 
         if(recordingSession.camDevice == null) {
-            Toast.makeText(context, "Cannot start video! Device null? ${recordingSession.camDevice == null}", Toast.LENGTH_SHORT).show()
+            context?.shortToast("Cannot start video! Device null? ${recordingSession.camDevice == null}")
             return
         }
 
         //[0] is the camera path, [1] is the screen path
         val paths: Array<String> = recordingSession.getVideoPaths(context ?: return)
 
-        this::class.java.simpleName.infoLog("Saving in paths: ${paths[0]}, ${paths[1]}")
+        TAG.infoLog("Saving in paths: ${paths[0]}, ${paths[1]}")
 
         recordingSession.initCamRecorder(paths[0], screenOrientation)
         recordingSession.initScreenRecorder(paths[1])

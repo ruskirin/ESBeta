@@ -30,6 +30,11 @@ class MainToolbar(context: Context, attrs: AttributeSet) : Toolbar(context, attr
         }
     }
 
+    fun displayFinish() {
+
+
+    }
+
     fun visibleBookNav() {
         if(bookBtnPrev == null || bookBtnNext == null) return
 

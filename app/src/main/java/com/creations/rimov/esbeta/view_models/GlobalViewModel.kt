@@ -9,6 +9,8 @@ class GlobalViewModel : ViewModel() {
     private var totalPageNum: Int = 0
     private var pageNum: MutableLiveData<Int> = MutableLiveData(0)
 
+    private var isFinished: Boolean = false
+
     fun getPageNum() = pageNum
 
     fun setPageNum(num: Int) {

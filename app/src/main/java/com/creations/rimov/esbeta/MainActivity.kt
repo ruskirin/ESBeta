@@ -36,7 +36,9 @@ class MainActivity : AppCompatActivity() {
         globalVm.getPageNum().observe(this, Observer { num ->
             when {
                 num == 0 -> toolbar.vanishPrev()
-                num >= globalVm.getTotalPageNum() -> toolbar.vanishNext()
+                num >= globalVm.getTotalPageNum() -> {
+                    toolbar.vanishNext()
+                }
                 else -> toolbar.visibleBookNav()
             }
         })

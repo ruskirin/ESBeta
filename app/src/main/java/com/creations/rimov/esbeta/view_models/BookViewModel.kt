@@ -4,20 +4,23 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
-import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.MutableLiveData
 import com.creations.rimov.esbeta.R
 import com.creations.rimov.esbeta.extensions.infoLog
+import com.creations.rimov.esbeta.extensions.shortToast
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.roundToInt
 
 class BookViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val TAG = this::class.java.simpleName
 
     private lateinit var renderer: PdfRenderer
 
     private var bookName: String = ""
-    private val pageNum: MutableLiveData<Int> = MutableLiveData(0)
+
+    private var pageNum: Int = 0
     private var page: PdfRenderer.Page? = null
 
     fun getPageNum() = pageNum
@@ -25,24 +28,28 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     fun setPageNum(num: Int) {
 
         if(num >= renderer.pageCount) {
-            Toast.makeText(getApplication<Application>(), "No such page!", Toast.LENGTH_SHORT).show()
+            (getApplication() as Application).shortToast("No such page!")
             return
         }
 
-        pageNum.postValue(num)
+        pageNum = num
     }
 
-    fun getRenderedPage(): Bitmap? {
-
+    fun getRenderedPage(width: Int? = null): Bitmap? {
         if(page != null) page!!.close() //Only 1 pdfPage can be rendered at a time
+
+        TAG.infoLog("Rendering page $pageNum")
 
         var bitmap: Bitmap
 
-        this::class.java.simpleName.infoLog("Rendering page ${pageNum.value}")
-
-        page = renderer.openPage(pageNum.value ?: 0)
+        page = renderer.openPage(pageNum)
             .apply {
-                bitmap = Bitmap.createBitmap(this.width, this.height, Bitmap.Config.ARGB_8888)
+                val ratio = this.width.toFloat()/this.height
+
+                if(width == null)
+                    bitmap = Bitmap.createBitmap(this.width, this.height, Bitmap.Config.ARGB_8888)
+                else
+                    bitmap = Bitmap.createBitmap(width, (width/ratio).roundToInt(), Bitmap.Config.ARGB_8888)
 
                 render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
         }
@@ -51,9 +58,10 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun initRenderer(bookName: String) {
+
         if(::renderer.isInitialized && (bookName == this.bookName)) return
 
-        pageNum.postValue(0) //Reset pageNum
+        pageNum = 0 //Reset pageNum
 
         val ctx = getApplication<Application>()
 
