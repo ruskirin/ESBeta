@@ -46,7 +46,8 @@ class MainMenuFragment : Fragment(), View.OnClickListener {
                     findNavController().navigate(R.id.action_mainMenuFragment_to_videoFragment)
                 }
                 R.id.menuB -> {
-                    findNavController().navigate(R.id.action_mainMenuFragment_to_bookFragment)
+                    val directions = MainMenuFragmentDirections.actionMainMenuFragmentToBookFragment(2)
+                    findNavController().navigate(directions)
                 }
                 R.id.menuC -> {
 

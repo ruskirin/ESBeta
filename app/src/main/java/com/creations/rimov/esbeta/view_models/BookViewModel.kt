@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.creations.rimov.esbeta.R
 import com.creations.rimov.esbeta.extensions.infoLog
 import com.creations.rimov.esbeta.extensions.shortToast
+import com.creations.rimov.esbeta.fragments.BookFragment
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.roundToInt
@@ -65,10 +66,15 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
         val ctx = getApplication<Application>()
 
+        val resource =
+            if(bookName == "esbook_1.pdf")  R.raw.esbook_1
+            else if(bookName == "esbook_2.pdf") R.raw.esbook_2
+            else R.raw.esbook_2
+
         //An object from raw cannot be directly made into a File, must be cached first
         val file = File(ctx.cacheDir, bookName)
 
-        val input = ctx.resources.openRawResource(R.raw.esbook_1)
+        val input = ctx.resources.openRawResource(resource)
         val output = FileOutputStream(file)
         val buffer = ByteArray(1024)
 
@@ -89,4 +95,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
             renderer = PdfRenderer(it)
         }
     }
+
+    fun getTotalPageNum() = renderer.pageCount
 }

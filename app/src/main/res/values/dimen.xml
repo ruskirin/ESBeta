@@ -2,4 +2,7 @@
 <resources>
     <dimen name="button_reg">48dp</dimen>
     <dimen name="button_large">64dp</dimen>
+
+    <dimen name="margin_reg">8dp</dimen>
+    <dimen name="margin_large">16dp</dimen>
 </resources>

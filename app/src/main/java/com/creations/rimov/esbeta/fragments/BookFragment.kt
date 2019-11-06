@@ -26,6 +26,7 @@ import com.creations.rimov.esbeta.extensions.shortToast
 import com.creations.rimov.esbeta.util.PermissionsUtil
 import com.creations.rimov.esbeta.view_models.BookViewModel
 import com.creations.rimov.esbeta.view_models.GlobalViewModel
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import kotlinx.android.synthetic.main.testing_book.view.*
 
 /**
@@ -33,7 +34,7 @@ import kotlinx.android.synthetic.main.testing_book.view.*
  *   https://medium.com/@chahat.jain0/rendering-a-pdf-document-in-android-activity-fragment-using-pdfrenderer-442462cb8f9a
  */
 class BookFragment : Fragment(), View.OnClickListener {
-    @JvmField val BOOKS = mapOf(1 to "esbook_1.pdf")
+    @JvmField val BOOKS = mapOf(1 to "esbook_1.pdf", 2 to "esbook_2.pdf")
 
     private val TAG = this::class.java.simpleName
 
@@ -55,6 +56,7 @@ class BookFragment : Fragment(), View.OnClickListener {
 
     private lateinit var pageImage: ImageView
     private lateinit var btn: ImageView
+    private lateinit var fab: FloatingActionButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,6 +77,7 @@ class BookFragment : Fragment(), View.OnClickListener {
             }
         }
 
+        TAG.infoLog("onCreate(): Requested book ${args.book}, ${BOOKS[args.book]}")
         //TODO: display error image
         localVm.initRenderer(BOOKS[args.book] ?: "esbook_1.pdf")
     }
@@ -84,9 +87,13 @@ class BookFragment : Fragment(), View.OnClickListener {
 
         pageImage = view.bookPage
         btn = view.bookBtn
+        fab = view.bookFab
 
-        globalVm.getPageNum().observe(this, Observer {
-            localVm.setPageNum(it)
+        globalVm.getPageNum().observe(this, Observer { num ->
+            localVm.setPageNum(num)
+
+            if(num == localVm.getTotalPageNum()-1) fab.show()
+            else fab.hide()
 
             Glide.with(this)
                 .load(localVm.getRenderedPage(displayMetrics.widthPixels))
@@ -95,6 +102,7 @@ class BookFragment : Fragment(), View.OnClickListener {
         })
 
         btn.setOnClickListener(this)
+        fab.setOnClickListener(this)
 
         return view
     }
@@ -131,13 +139,19 @@ class BookFragment : Fragment(), View.OnClickListener {
     }
 
     override fun onClick(view: View?) {
-        if(view?.id != R.id.bookBtn) return
-
-        toggleBtn()
+        when(view?.id) {
+            R.id.bookBtn -> {
+                toggleBtn()
+            }
+            R.id.bookFab -> {
+                stop()
+            }
+        }
     }
 
     private fun start() {
 
+        globalVm.setTotalPageNum(localVm.getTotalPageNum())
         globalVm.setPageNum(0)
 
         if(recordingSession.camDevice == null) {
