@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity(), NavController.OnDestinationChangedList
         return false
     }
 
-    /*Should be the way to toggle menu items, but issues appear*/
+    /*Should be the way to toggle menu items, but issues appear on tablet. Run and see.*/
 //    override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
 //        TAG.infoLog("Is menu null? ${menu == null}. Current destination is bookFrag? ${navController.currentDestination?.id == R.id.bookFragment}")
 //
